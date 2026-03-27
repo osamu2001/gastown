@@ -26,6 +26,7 @@ import (
 	"github.com/steveyegge/gastown/internal/doltserver"
 	"github.com/steveyegge/gastown/internal/events"
 	"github.com/steveyegge/gastown/internal/feed"
+	"github.com/steveyegge/gastown/internal/estop"
 	gitpkg "github.com/steveyegge/gastown/internal/git"
 	"github.com/steveyegge/gastown/internal/mayor"
 	"github.com/steveyegge/gastown/internal/polecat"
@@ -685,6 +686,15 @@ func (d *Daemon) heartbeat(state *State) {
 	// The shutdown.lock file is created by gt down before terminating sessions.
 	if d.isShutdownInProgress() {
 		d.logger.Println("Shutdown in progress, skipping heartbeat")
+		return
+	}
+
+	// Skip agent management if E-stop is active.
+	// The daemon stays alive (to maintain Dolt, etc.) but does NOT
+	// restart any agents. This prevents fighting the E-stop by auto-spawning
+	// sessions that were intentionally frozen.
+	if estop.IsActive(d.config.TownRoot) {
+		d.logger.Println("E-STOP active, skipping agent management")
 		return
 	}
 
